@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PostDump — LinkedIn Post Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #7fff6e;
+    --accent2: #6eb8ff;
+    --text: #eeeef5;
+    --muted: #5a5a72;
+    --card: #13131c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 60% 50% at 20% 20%, rgba(127,255,110,0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 80% 80%, rgba(110,184,255,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+  header {
+    padding: 52px 0 40px;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .logo-mark {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-text h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+  .header-text p { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 12px;
+  }
+  .ideas-area {
+    width: 100%; min-height: 140px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 14px; line-height: 1.7;
+    resize: vertical; outline: none; transition: border-color 0.2s;
+  }
+  .ideas-area::placeholder { color: var(--muted); }
+  .ideas-area:focus { border-color: rgba(127,255,110,0.3); }
+  .tone-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  .tone-btn {
+    padding: 7px 16px; border-radius: 100px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .tone-btn:hover { border-color: var(--muted); color: var(--text); }
+  .tone-btn.active { background: var(--accent); border-color: var(--accent); color: #0a0a0f; }
+  .generate-btn {
+    margin-top: 24px; width: 100%; padding: 16px;
+    background: var(--accent); color: #0a0a0f; border: none; border-radius: 12px;
+    font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800;
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .generate-btn:hover { background: #a0ffb0; transform: translateY(-1px); }
+  .generate-btn:active { transform: translateY(0); }
+  .generate-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.3); border-top-color: #0a0a0f;
+    border-radius: 50%; animation: spin 0.7s linear infinite; display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .output-section { margin-top: 52px; display: none; }
+  .output-section.visible { display: block; }
+  .divider { height: 1px; background: var(--border); margin-bottom: 40px; }
+  .post-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px; position: relative; animation: slideUp 0.4s ease;
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .post-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .avatar {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800; color: #0a0a0f; flex-shrink: 0;
+  }
+  .post-author { font-size: 15px; font-weight: 700; }
+  .post-title { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .post-body {
+    font-family: 'DM Mono', monospace; font-size: 14px; line-height: 1.85;
+    color: #d0d0e0; white-space: pre-wrap; word-break: break-word;
+  }
+  .post-actions {
+    display: flex; gap: 10px; margin-top: 24px;
+    padding-top: 20px; border-top: 1px solid var(--border);
+  }
+  .action-btn {
+    padding: 9px 18px; border-radius: 8px;
+    border: 1px solid var(--border); background: transparent; color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .action-btn:hover { border-color: var(--muted); background: rgba(255,255,255,0.04); }
+  .copy-btn.copied { border-color: var(--accent); color: var(--accent); }
+  .regen-btn { margin-left: auto; border-color: rgba(110,184,255,0.3); color: var(--accent2); }
+  .regen-btn:hover { border-color: var(--accent2); background: rgba(110,184,255,0.06); }
+  .error-msg {
+    background: rgba(255,80,80,0.08); border: 1px solid rgba(255,80,80,0.2);
+    border-radius: 10px; padding: 14px 18px;
+    font-family: 'DM Mono', monospace; font-size: 13px; color: #ff6b6b;
+    margin-top: 16px; display: none;
+  }
+  .error-msg.visible { display: block; }
+  .char-count { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); text-align: right; margin-top: 8px; }
+  .char-count.good { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo-mark">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M3 6h16M3 11h10M3 16h13" stroke="#0a0a0f" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="header-text">
+      <h1>PostDump</h1>
+      <p>raw ideas → human linkedin posts</p>
+    </div>
+  </header>
+
+  <div class="section-label">Dump your ideas here</div>
+  <textarea class="ideas-area" id="ideasInput"
+    placeholder="jensen huang ai revolution, agentic coding like from claude code last year, robot powered by nvidia gpu... anything goes"></textarea>
+  <div class="char-count" id="charCount">0 chars</div>
+
+  <div style="margin-top: 24px;">
+    <div class="section-label">Tone</div>
+    <div class="tone-row" id="toneRow">
+      <button class="tone-btn active" data-tone="founder">Founder / Builder</button>
+      <button class="tone-btn" data-tone="thoughtleader">Thought Leader</button>
+      <button class="tone-btn" data-tone="storyteller">Storyteller</button>
+      <button class="tone-btn" data-tone="concise">Short & Punchy</button>
+      <button class="tone-btn" data-tone="hype">Hype / Energy</button>
+    </div>
+  </div>
+
+  <button class="generate-btn" id="generateBtn" onclick="generatePost()">
+    <div class="spinner" id="spinner"></div>
+    <span id="btnText">Generate Post</span>
+  </button>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="output-section" id="outputSection">
+    <div class="divider"></div>
+    <div class="section-label">Your LinkedIn Post</div>
+    <div class="post-card">
+      <div class="post-meta">
+        <div class="avatar">Y</div>
+        <div>
+          <div class="post-author">You</div>
+          <div class="post-title">Founder · Builder · 1st</div>
+        </div>
+      </div>
+      <div class="post-body" id="postBody"></div>
+      <div class="post-actions">
+        <button class="action-btn copy-btn" id="copyBtn" onclick="copyPost()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M2 10V2h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Copy
+        </button>
+        <button class="action-btn regen-btn" onclick="generatePost()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7a5.5 5.5 0 1 0 1.2-3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M1.5 3v3.5H5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Regenerate
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedTone = 'founder';
+
+  document.getElementById('toneRow').addEventListener('click', e => {
+    const btn = e.target.closest('.tone-btn');
+    if (!btn) return;
+    document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedTone = btn.dataset.tone;
+  });
+
+  document.getElementById('ideasInput').addEventListener('input', function() {
+    const n = this.value.length;
+    const el = document.getElementById('charCount');
+    el.textContent = n + ' chars';
+    el.className = 'char-count' + (n > 10 ? ' good' : '');
+  });
+
+  const tonePrompts = {
+    founder: "Write like a scrappy, self-aware founder who is genuinely excited. Authentic, not salesy. Use 'we' or 'I'. No cringe hustle-culture phrases.",
+    thoughtleader: "Write like an insightful tech thought leader: structured takes, a clear thesis, nuanced perspective. No fluff.",
+    storyteller: "Write as a narrative story with a hook, build-up, and punchy conclusion. Personal and vivid.",
+    concise: "Extremely concise. Max 5 short punchy lines. No emojis, no bullet walls. Every word earns its place.",
+    hype: "High energy, forward-looking, unapologetically excited about the future. Bold claims, short punchy lines.",
+  };
+
+  async function generatePost() {
+    const ideas = document.getElementById('ideasInput').value.trim();
+    if (!ideas) { showError('Paste some ideas first!'); return; }
+
+    setLoading(true);
+    hideError();
+
+    const toneInstruction = tonePrompts[selectedTone];
+    const systemPrompt = `You are an expert LinkedIn ghostwriter who creates authentic, human-sounding posts that perform exceptionally well.
+
+Rules:
+- Sound like a real human, NOT an AI
+- NO generic openers like "In today's fast-paced world..." or "I'm excited to share..."
+- NO hollow phrases like "game-changer", "synergy", "leverage", "circle back"
+- USE occasional line breaks for readability (LinkedIn style — short paragraphs)
+- END with a punchy question or call to action that invites genuine engagement
+- Emojis: use sparingly and only if they add energy (max 3)
+- Length: 150-280 words
+- Tone: ${toneInstruction}
+- Output ONLY the post text, nothing else — no title, no explanation, no quotes around it.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: `Turn these raw ideas into a LinkedIn post:\n\n${ideas}` }]
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) { showError('API error: ' + data.error.message); setLoading(false); return; }
+
+      const postText = data.content?.[0]?.text?.trim();
+      if (!postText) { showError('No response. Try again.'); setLoading(false); return; }
+
+      document.getElementById('postBody').textContent = postText;
+      document.getElementById('outputSection').classList.add('visible');
+      const copyBtn = document.getElementById('copyBtn');
+      copyBtn.classList.remove('copied');
+      copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M2 10V2h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Copy`;
+      document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      showError('Something went wrong: ' + err.message);
+    }
+    setLoading(false);
+  }
+
+  function copyPost() {
+    const text = document.getElementById('postBody').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.classList.add('copied');
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Copied!`;
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M2 10V2h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg> Copy`;
+      }, 2500);
+    });
+  }
+
+  function setLoading(on) {
+    document.getElementById('generateBtn').disabled = on;
+    document.getElementById('spinner').style.display = on ? 'block' : 'none';
+    document.getElementById('btnText').textContent = on ? 'Generating...' : 'Generate Post';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg; el.classList.add('visible');
+  }
+  function hideError() { document.getElementById('errorMsg').classList.remove('visible'); }
+
+  document.getElementById('ideasInput').addEventListener('keydown', e => {
+    if (e.metaKey && e.key === 'Enter') generatePost();
+  });
+</script>
+</body>
+</html>
